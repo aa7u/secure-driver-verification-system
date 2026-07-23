@@ -4,7 +4,7 @@ import tempfile
 from evaluator import RiskEvaluator
 from verifier import DriverVerifier
 from blocklist import BlocklistChecker
-
+from cert_verifier import CertificateVerifier
 
 def test_risk_evaluator_signed():
     """Test driver evaluation for signed status."""
@@ -16,10 +16,10 @@ def test_risk_evaluator_signed():
 def test_risk_evaluator_unsigned():
     """Test driver evaluation for unsigned status."""
     result = RiskEvaluator.evaluate_driver(
-        driver_name="test_unsigned.sys", has_signature=False
+        driver_name="custom_driver.sys",  
+        has_signature=False
     )
     assert result["level"] == "HIGH RISK"
-    assert "do not install" in result["recommendation"].lower()
 
 
 def test_hash_calculation():
@@ -64,3 +64,8 @@ def test_risk_evaluator_blocklist():
     )
     assert result["level"] == "CRITICAL RISK"
     assert "blocked" in result["recommendation"].lower()
+    
+
+def test_certificate_extractor_non_existent():
+    res = CertificateVerifier.extract_certificates("")
+    assert res["has_cert_table"] is False

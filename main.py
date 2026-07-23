@@ -10,8 +10,10 @@ from rich.progress import track
 from collector import DriverCollector
 from verifier import DriverVerifier
 from evaluator import RiskEvaluator
+from cert_verifier import CertificateVerifier
 
 console = Console()
+
 
 def export_json(results, output_path="report.json"):
     """Saves scan results to a structured JSON file."""
@@ -19,17 +21,21 @@ def export_json(results, output_path="report.json"):
         json.dump(results, f, indent=4)
     console.print(f"[bold green]✔ Report successfully exported to JSON:[/] {output_path}")
 
+
 def export_html(results, output_path="report.html"):
-    """Saves scan results to a clean HTML report."""
+    """Saves scan results to an enhanced HTML report."""
     rows = ""
     for r in results:
-        badge_color = "#28a745" if r["risk_level"] == "LOW RISK" else \
-                      "#ffc107" if r["risk_level"] == "MEDIUM RISK" else \
-                      "#dc3545" if r["risk_level"] == "HIGH RISK" else \
-                      "#6f42c1" # Purple for CRITICAL RISK
+        badge_color = (
+            "#28a745" if r["risk_level"] == "LOW RISK" else
+            "#ffc107" if r["risk_level"] == "MEDIUM RISK" else
+            "#dc3545" if r["risk_level"] == "HIGH RISK" else
+            "#6f42c1" # Purple for CRITICAL RISK
+        )
 
         score = r.get("trust_score", 100)
         entropy = r.get("entropy", 0.0)
+        cert_info = r.get("cert_issuer") or "None / Unsigned"
 
         rows += f"""
         <tr>
@@ -38,6 +44,7 @@ def export_html(results, output_path="report.html"):
             <td>{'Yes ✅' if r['is_signed'] else 'No ❌'}</td>
             <td><strong>{score}/100</strong></td>
             <td>{entropy:.2f}</td>
+            <td><small>{cert_info}</small></td>
             <td><span style="background-color: {badge_color}; color: white; padding: 3px 8px; border-radius: 4px; font-weight: bold;">{r['risk_level']}</span></td>
             <td>{r['recommendation']}</td>
         </tr>
@@ -48,7 +55,7 @@ def export_html(results, output_path="report.html"):
     <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <title>SDVS Audit Report</title>
+        <title>SDVS Audit Report v0.5.0</title>
         <style>
             body {{ font-family: 'Segoe UI', Arial, sans-serif; margin: 40px; background-color: #f8f9fa; color: #333; }}
             h1 {{ color: #0056b3; }}
@@ -59,7 +66,7 @@ def export_html(results, output_path="report.html"):
         </style>
     </head>
     <body>
-        <h1>🛡️ SDVS Kernel Driver Audit Report (v0.4.0)</h1>
+        <h1>🛡️ SDVS Kernel Driver Audit Report (v0.5.0)</h1>
         <p><strong>Generated At:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
         <table>
             <thead>
@@ -69,6 +76,7 @@ def export_html(results, output_path="report.html"):
                     <th>Signed</th>
                     <th>Trust Score</th>
                     <th>Entropy</th>
+                    <th>Certificate Issuer</th>
                     <th>Risk Level</th>
                     <th>Recommendation</th>
                 </tr>
@@ -84,9 +92,10 @@ def export_html(results, output_path="report.html"):
         f.write(html_content)
     console.print(f"[bold green]✔ Report successfully exported to HTML:[/] {output_path}")
 
+
 def run_sdvs_audit(limit=5, export_format=None):
-    console.print(Panel.fit("[bold cyan]🛡️ Secure Driver Verification System (SDVS) v0.4.0[/]", border_style="bold blue"))
-    
+    console.print(Panel.fit("[bold cyan]🛡️ Secure Driver Verification System (SDVS) v0.5.0[/]", border_style="bold blue"))
+
     drivers = DriverCollector.get_installed_drivers(limit=limit)
     audit_results = []
 
@@ -98,14 +107,16 @@ def run_sdvs_audit(limit=5, export_format=None):
     table.add_column("Risk Level", justify="center")
     table.add_column("Recommendation", style="italic")
 
-    for driver in track(drivers, description="[green]Scanning & Verifying PE headers & Trust Engine..."):
+    for driver in track(drivers, description="[green]Scanning & Verifying PE headers, Certs & Policy Rules..."):
         driver_name = driver["name"]
         driver_path = driver["path"]
 
         sha256_hash = DriverVerifier.get_file_hash(driver_path)
         is_signed = DriverVerifier.check_digital_signature(driver_path)
-        
-        # Pass file_path to calculate Entropy, PDB Path, and Trust Score!
+
+        # Extract Authenticode Certificates Info
+        cert_details = CertificateVerifier.extract_certificates(driver_path)
+
         risk = RiskEvaluator.evaluate_driver(
             driver_name=driver_name,
             has_signature=is_signed,
@@ -118,7 +129,6 @@ def run_sdvs_audit(limit=5, export_format=None):
         risk_level = risk["level"]
         risk_color = risk.get("color", "white")
 
-        # Color-coded Trust Score display
         if trust_score >= 80:
             score_styled = f"[bold green]{trust_score}/100[/bold green]"
         elif trust_score >= 50:
@@ -143,9 +153,13 @@ def run_sdvs_audit(limit=5, export_format=None):
             "path": driver_path,
             "sha256": sha256_hash,
             "is_signed": is_signed,
+            "cert_issuer": cert_details.get("issuer"),
+            "cert_subject": cert_details.get("subject"),
             "trust_score": trust_score,
             "entropy": entropy,
             "risk_level": risk_level,
+            "deductions": risk.get("deductions", []),
+            "triggered_rules": risk.get("triggered_rules", []),
             "recommendation": risk["recommendation"]
         })
 
@@ -155,6 +169,7 @@ def run_sdvs_audit(limit=5, export_format=None):
         export_json(audit_results)
     elif export_format == "html":
         export_html(audit_results)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="SDVS - Secure Driver Verification System")

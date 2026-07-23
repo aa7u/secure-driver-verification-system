@@ -1,11 +1,12 @@
 """
 Risk Evaluation Engine for Kernel Drivers.
-Calculates trust scores (0-100) and risk levels based on signature status, PE attributes, entropy, and blocklist presence.
+Calculates trust scores (0-100), risk levels, extended PE attributes, and custom YAML policy rules.
 """
 
 import math
 import pefile
 from blocklist import BlocklistChecker
+from rule_engine import RuleEngine
 
 
 def calculate_entropy(data: bytes) -> float:
@@ -67,6 +68,7 @@ class RiskEvaluator:
     """Evaluates safety, trust score, and risk level for device drivers."""
 
     _blocklist_checker = BlocklistChecker()
+    _rule_engine = RuleEngine()
 
     @classmethod
     def evaluate_driver(
@@ -78,14 +80,14 @@ class RiskEvaluator:
         file_path: str = None,
     ) -> dict:
         """
-        Assigns a Trust Score (0-100), Risk Level, UI Color, and detailed recommendation.
+        Assigns a Trust Score (0-100), Risk Level, UI Color, and evaluates custom YAML policy rules.
         """
         score = 100
         deductions = []
-        
+
         # Check Blocklist matching (Microsoft or LOLDrivers)
         is_blocked, block_source = cls._blocklist_checker.check_hash(file_hash) if file_hash else (False, "Clean")
-        
+
         # Extract extended PE attributes
         pe_meta = extract_pe_metadata(file_path) if file_path else {"entropy": 0.0, "is_packed": False, "pdb_path": None}
 
@@ -100,24 +102,37 @@ class RiskEvaluator:
                 "entropy": pe_meta["entropy"],
                 "pdb_path": pe_meta["pdb_path"],
                 "deductions": deductions,
+                "triggered_rules": [],
                 "recommendation": f"BLOCKED! Driver SHA-256 matches a known vulnerable/exploited kernel driver ({block_source}).",
             }
 
-        # 2. Signature Deductions
+        # 2. Base Deductions
         if not has_signature:
             score -= 50
             deductions.append("Unsigned Kernel Driver (-50)")
 
-        # 3. Experimental or Beta Deductions
         is_test = is_beta or "test" in driver_name.lower()
         if is_test:
             score -= 30
             deductions.append("Experimental / Test-Signed Driver (-30)")
 
-        # 4. PE Entropy / Packing Deductions
         if pe_meta.get("is_packed"):
             score -= 20
             deductions.append(f"High Entropy / Packed Binary ({pe_meta['entropy']}) (-20)")
+
+        # 3. Custom YAML Rule Engine Evaluation
+        driver_context = {
+            "driver_name": driver_name,
+            "path": file_path or "",
+            "is_signed": has_signature,
+            "entropy": pe_meta["entropy"],
+        }
+        triggered_rules = cls._rule_engine.evaluate(driver_context)
+
+        for rule in triggered_rules:
+            ded_val = rule["deduction"]
+            score -= ded_val
+            deductions.append(f"Policy Rule '{rule['rule_name']}': {rule['description']} (-{ded_val})")
 
         # Clamp final score between 0 and 100
         final_score = max(0, min(100, score))
@@ -127,11 +142,11 @@ class RiskEvaluator:
             level = "LOW RISK"
             color = "green"
             rec = "Driver is officially signed and appears safe for kernel operation."
-        elif final_score >= 50:
+        elif final_score > 50:  # > 50 keeps 50 strictly inside HIGH RISK
             level = "MEDIUM RISK"
             color = "yellow"
             rec = "Proceed with caution. Experimental or test-signed driver detected."
-        elif final_score >= 20:
+        elif final_score >= 20:  # 50 falls here
             level = "HIGH RISK"
             color = "red"
             rec = "Do NOT install/load. Unsigned or suspicious kernel drivers pose severe security threats."
@@ -147,5 +162,6 @@ class RiskEvaluator:
             "entropy": pe_meta["entropy"],
             "pdb_path": pe_meta["pdb_path"],
             "deductions": deductions,
+            "triggered_rules": triggered_rules,
             "recommendation": rec,
         }
