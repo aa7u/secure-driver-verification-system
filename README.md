@@ -5,14 +5,23 @@
 [![Focus](https://img.shields.io/badge/Focus-Kernel%20Security-blue)](#)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-green.svg)](#)
 
-An open-source security tool designed to audit, verify, and assess system drivers before installation. Operating at the Kernel Level, device drivers possess elevated system privileges—making untrusted or unsigned drivers a severe security risk. **SDVS** mitigates supply chain risks by inspecting driver signatures, vendor sources, and integrity before execution.
+An open-source security tool designed to audit, verify, and assess system drivers before installation. Operating at the Kernel Level, device drivers possess elevated system privileges—making untrusted or unsigned drivers a severe security risk. **SDVS** mitigates supply chain risks by inspecting driver signatures, vendor sources, blocklists, and integrity before execution.
 
 ---
 
 ## 🎬 Live Audit Demonstration
 
-
 ![SDVS Demo](assets/demo.gif)
+
+---
+
+## 🏛️ Design Philosophy
+
+SDVS is built upon three core security principles tailored for modern kernel-space defenses:
+
+* **Zero Trust in Kernel Space:** No driver is trusted by default—even if digitally signed—until its SHA-256 hash is verified against known vulnerable and exploited driver databases.
+* **Defense-in-Depth Assessment:** Security evaluation moves beyond simple PE header inspection into multi-layered risk scoring (Signature + Microsoft Blocklists + Beta/Test Flags).
+* **Developer-Centric Security Audit:** High-speed CLI execution combined with actionable recommendations, enabling engineers and threat analysts to assess system integrity effortlessly.
 
 ---
 
@@ -20,24 +29,23 @@ An open-source security tool designed to audit, verify, and assess system driver
 
 * 🔍 **System Driver Auditing:** Scans and inventories currently installed Windows kernel drivers.
 * ✍️ **Digital Signature Verification:** Parses PE Security Directories (`IMAGE_DIRECTORY_ENTRY_SECURITY`) to validate Authenticode digital signatures.
+* 🛡️ **Microsoft Vulnerable Driver Blocklist:** Integrates SHA-256 matching engine to detect exploited drivers used in Bring Your Own Vulnerable Driver (BYOVD) attacks.
 * 🔐 **Cryptographic Verification:** Computes accurate SHA-256 binary hashes for file integrity checks.
 * 🎨 **Interactive Rich CLI:** Uses progress indicators and color-coded risk assessment tables.
 * 📄 **Multi-Format Exporting:** Supports exporting full audit reports to structured `JSON` and styled `HTML` formats.
-* ⚠️ **Risk Assessment Matrix:** Evaluates drivers and dynamically assigns security ratings (**LOW RISK**, **MEDIUM RISK**, or **HIGH RISK**).
+* ⚠️ **Risk Assessment Matrix:** Evaluates drivers and dynamically assigns security ratings (**LOW RISK**, **MEDIUM RISK**, **HIGH RISK**, or **CRITICAL RISK**).
 * 💡 **Actionable Recommendations:** Provides clear safety guidance before loading drivers into system kernel space.
 
 ---
 
-## 🗺️ Roadmap
+## 🗺️ Strategic Capabilities Roadmap
 
-- [x] Initial kernel driver inventory collector module.
-- [x] SHA-256 cryptographic hashing integration.
-- [x] PE Authenticode digital signature validation.
-- [x] Interactive CLI interface (`Rich`).
-- [x] Exporting audit results to structured JSON & HTML reports.
-- [x] Automated CI/CD Testing Pipeline (`GitHub Actions`).
-- [ ] Official Vendor metadata cross-checking (Intel, AMD, NVIDIA).
-- [ ] VirusTotal API integration for cloud hash lookups.
+| Level | Version | Capability / Feature | Status |
+| :--- | :--- | :--- | :--- |
+| **Level 1** | `v0.1.0` - `v0.2.0` | PE Header Parsing, Digital Signature Verification, Rich CLI & Exporting (HTML/JSON) | **Completed** ✅ |
+| **Level 2** | `v0.3.0` | **Risk Assessment Engine**, Microsoft Vulnerable Driver Blocklist Integration, `CRITICAL RISK` BYOVD Detection | **Completed** ✅ |
+| **Level 3** | `v0.4.0` | Custom Directory Scanning CLI Flags (`--path`), Dynamic Heuristic Rules Engine | **In Progress** ⏳ |
+| **Level 4** | `v1.0.0` | Kernel Memory Inspection, Real-Time Driver Load Monitoring, VirusTotal API Integration | **Planned** 📅 |
 
 ---
 
