@@ -1,6 +1,7 @@
 # 🛡️ Secure Driver Verification System (SDVS)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Tests](https://github.com/aa7u/secure-driver-verification-system/actions/workflows/tests.yml/badge.svg)](https://github.com/aa7u/secure-driver-verification-system/actions)
 [![Focus](https://img.shields.io/badge/Focus-Kernel%20Security-blue)](#)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-green.svg)](#)
 
@@ -19,9 +20,10 @@ An open-source security tool designed to audit, verify, and assess system driver
 * 🔍 **System Driver Auditing:** Scans and inventories currently installed Windows kernel drivers.
 * ✍️ **Digital Signature Verification:** Parses PE Security Directories (`IMAGE_DIRECTORY_ENTRY_SECURITY`) to validate Authenticode digital signatures.
 * 🔐 **Cryptographic Verification:** Computes accurate SHA-256 binary hashes for file integrity checks.
-* 🏷️ **Release Channel Inspection:** Identifies whether a driver package is Stable, WHQL-certified, or Beta/Experimental.
+* 🎨 **Interactive Rich CLI:** Uses progress indicators and color-coded risk assessment tables.
+* 📄 **Multi-Format Exporting:** Supports exporting full audit reports to structured `JSON` and styled `HTML` formats.
 * ⚠️ **Risk Assessment Matrix:** Evaluates drivers and dynamically assigns security ratings (**LOW RISK**, **MEDIUM RISK**, or **HIGH RISK**).
-* 💡 **Actionable Recommendations:** Provides clear safety guidance and recommendations before loading drivers.
+* 💡 **Actionable Recommendations:** Provides clear safety guidance before loading drivers into system kernel space.
 
 ---
 
@@ -30,9 +32,11 @@ An open-source security tool designed to audit, verify, and assess system driver
 - [x] Initial kernel driver inventory collector module.
 - [x] SHA-256 cryptographic hashing integration.
 - [x] PE Authenticode digital signature validation.
-- [ ] Exporting audit results to structured JSON / HTML reports.
+- [x] Interactive CLI interface (`Rich`).
+- [x] Exporting audit results to structured JSON & HTML reports.
+- [x] Automated CI/CD Testing Pipeline (`GitHub Actions`).
 - [ ] Official Vendor metadata cross-checking (Intel, AMD, NVIDIA).
-- [ ] Interactive CLI interface (Rich / Typer).
+- [ ] VirusTotal API integration for cloud hash lookups.
 
 ---
 
@@ -57,5 +61,8 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 
-# Run the driver audit system
+# Run interactive CLI scan
 python main.py
+
+# Run scan with HTML report export
+python main.py --limit 10 --export html
