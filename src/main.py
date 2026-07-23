@@ -1,5 +1,6 @@
 import argparse
 import json
+from baseline import BaselineManager
 from datetime import datetime
 from sarif_exporter import SarifExporter
 from rich.console import Console
@@ -254,17 +255,27 @@ def run_sdvs_audit(limit=5, export_format=None):
 def run_cli():
     """CLI entry point for pip/package distribution."""
     parser = argparse.ArgumentParser(description="SDVS - Secure Driver Verification System")
+    
+    # Argparse Arguments
     parser.add_argument("--limit", type=int, default=5, help="Number of drivers to scan")
     parser.add_argument("--export", choices=["json", "html", "sarif"], help="Export audit results (json, html, or sarif)")
     parser.add_argument("--monitor", action="store_true", help="Start Real-Time ETW Driver Load Monitor")
+    parser.add_argument("--baseline-save", action="store_true", help="Save current system kernel drivers state to baseline.json")
+    parser.add_argument("--baseline-compare", action="store_true", help="Compare current drivers against baseline.json snapshot")
+    
     args = parser.parse_args()
 
-    if args.monitor:
+    # Dispatch Execution Logic
+    if args.baseline_save:
+        BaselineManager.save_baseline()
+    elif args.baseline_compare:
+        BaselineManager.compare_baseline()
+    elif args.monitor:
         monitor = ETWDriverMonitor()
         monitor.start_polling_monitor()
     else:
         run_sdvs_audit(limit=args.limit, export_format=args.export)
 
-
+    
 if __name__ == "__main__":
     run_cli()
