@@ -1,6 +1,6 @@
 """
 Risk Evaluation Engine for Kernel Drivers.
-Calculates trust scores (0-100), risk levels, extended PE attributes, custom YAML policy rules, and YARA threat signatures.
+Calculates trust scores (0-100), risk levels, extended PE attributes, custom YAML policy rules, YARA threat signatures, and dynamic plugins.
 """
 
 import math
@@ -8,6 +8,9 @@ import pefile
 from blocklist import BlocklistChecker
 from rule_engine import RuleEngine
 from yara_verifier import YaraVerifier
+from plugins.manager import PluginManager
+
+plugin_manager = PluginManager()
 
 
 def calculate_entropy(data: bytes) -> float:
@@ -82,11 +85,11 @@ class RiskEvaluator:
         file_path: str = None,
     ) -> dict:
         """
-        Assigns a Trust Score (0-100), Risk Level, UI Color, and evaluates YAML rules & YARA threat matches.
+        Assigns a Trust Score (0-100), Risk Level, UI Color, and evaluates YAML rules, YARA threat matches & Dynamic Plugins.
         """
         score = 100
         deductions = []
-
+        
         # Check Blocklist matching (Microsoft or LOLDrivers)
         is_blocked, block_source = cls._blocklist_checker.check_hash(file_hash) if file_hash else (False, "Clean")
 
@@ -106,6 +109,7 @@ class RiskEvaluator:
                 "deductions": deductions,
                 "triggered_rules": [],
                 "yara_matches": [],
+                "plugin_results": {},
                 "recommendation": f"BLOCKED! Driver SHA-256 matches a known vulnerable/exploited kernel driver ({block_source}).",
             }
 
@@ -143,6 +147,15 @@ class RiskEvaluator:
             score -= 30
             deductions.append(f"YARA Threat Match '{y_match['rule_name']}': {y_match['description']} (-30)")
 
+        # 5. Dynamic Plugin SDK Execution
+        driver_info = {"file_hash": file_hash, "is_signed": has_signature, "entropy": pe_meta["entropy"]}
+        plugin_results = plugin_manager.run_all_plugins(file_path or "", driver_info)
+        
+        if plugin_results.get("total_deduction", 0) > 0:
+            score -= plugin_results["total_deduction"]
+            for finding in plugin_results.get("findings", []):
+                deductions.append(f"Plugin Detection: {finding}")
+
         # Clamp final score between 0 and 100
         final_score = max(0, min(100, score))
 
@@ -173,5 +186,6 @@ class RiskEvaluator:
             "deductions": deductions,
             "triggered_rules": triggered_rules,
             "yara_matches": yara_matches,
+            "plugin_results": plugin_results,
             "recommendation": rec,
         }
