@@ -1,7 +1,7 @@
 import argparse
 import json
 from datetime import datetime
-
+from sarif_exporter import SarifExporter
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
@@ -71,7 +71,7 @@ def export_html(results, output_path="report.html"):
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>SDVS Interactive Dashboard v0.6.0</title>
+        <title>SDVS Interactive Dashboard v1.3.0</title>
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <style>
             body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background-color: #1e1e2e; color: #cdd6f4; padding: 30px; }}
@@ -91,7 +91,7 @@ def export_html(results, output_path="report.html"):
     </head>
     <body>
         <div class="header">
-            <h1>🛡️ SDVS Kernel Security Dashboard (v0.6.0)</h1>
+            <h1>🛡️ SDVS Kernel Security Dashboard (v1.3.0)</h1>
             <span>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</span>
         </div>
 
@@ -169,7 +169,7 @@ def export_html(results, output_path="report.html"):
 
 
 def run_sdvs_audit(limit=5, export_format=None):
-    console.print(Panel.fit("[bold cyan]🛡️ Secure Driver Verification System (SDVS) v0.6.0[/]", border_style="bold blue"))
+    console.print(Panel.fit("[bold cyan]🛡️ Secure Driver Verification System (SDVS) v1.3.0[/]", border_style="bold blue"))
 
     drivers = DriverCollector.get_installed_drivers(limit=limit)
     audit_results = []
@@ -181,7 +181,7 @@ def run_sdvs_audit(limit=5, export_format=None):
     table.add_column("Entropy", justify="center")
     table.add_column("Risk Level", justify="center")
     table.add_column("Recommendation", style="italic")
-
+    
     for driver in track(drivers, description="[green]Scanning PE, Certs, Rules & YARA Engine..."):
         driver_name = driver["name"]
         driver_path = driver["path"]
@@ -223,6 +223,7 @@ def run_sdvs_audit(limit=5, export_format=None):
         )
 
         audit_results.append({
+            "name": driver_name,
             "driver_name": driver_name,
             "path": driver_path,
             "sha256": sha256_hash,
@@ -237,33 +238,24 @@ def run_sdvs_audit(limit=5, export_format=None):
             "yara_matches": risk.get("yara_matches", []),
             "recommendation": risk["recommendation"]
         })
+    
 
     console.print(table)
-
+    
     if export_format == "json":
         export_json(audit_results)
     elif export_format == "html":
         export_html(audit_results)
+    elif export_format == "sarif":
+        file_name = SarifExporter.generate_sarif_report(audit_results, "report.sarif")
+        console.print(f"[bold green]✔ SARIF v2.1.0 Report successfully exported to:[/] {file_name}")
 
 
 def run_cli():
     """CLI entry point for pip/package distribution."""
     parser = argparse.ArgumentParser(description="SDVS - Secure Driver Verification System")
     parser.add_argument("--limit", type=int, default=5, help="Number of drivers to scan")
-    parser.add_argument("--export", choices=["json", "html"], help="Export audit results (json or html)")
-    args = parser.parse_args()
-
-    run_sdvs_audit(limit=args.limit, export_format=args.export)
-
-
-if __name__ == "__main__":
-    run_cli()
-
-def run_cli():
-    """CLI entry point for pip/package distribution."""
-    parser = argparse.ArgumentParser(description="SDVS - Secure Driver Verification System")
-    parser.add_argument("--limit", type=int, default=5, help="Number of drivers to scan")
-    parser.add_argument("--export", choices=["json", "html"], help="Export audit results (json or html)")
+    parser.add_argument("--export", choices=["json", "html", "sarif"], help="Export audit results (json, html, or sarif)")
     parser.add_argument("--monitor", action="store_true", help="Start Real-Time ETW Driver Load Monitor")
     args = parser.parse_args()
 
@@ -272,3 +264,7 @@ def run_cli():
         monitor.start_polling_monitor()
     else:
         run_sdvs_audit(limit=args.limit, export_format=args.export)
+
+
+if __name__ == "__main__":
+    run_cli()
