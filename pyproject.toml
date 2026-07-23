@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sdvs"
+version = "0.6.0"
+description = "Secure Driver Verification System - Kernel Driver Audit & Threat Intelligence Tool"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "SDVS Development Team" }
+]
+keywords = ["security", "kernel", "drivers", "yara", "authenticode", "dfir", "threat-intelligence"]
+dependencies = [
+    "rich>=13.0.0",
+    "pefile>=2023.2.7",
+    "requests>=2.28.0",
+    "pyyaml>=6.0",
+    "cryptography>=41.0.0",
+    "yara-python>=4.3.0"
+]
+
+[project.scripts]
+sdvs = "main:run_cli"
+
+[tool.setuptools.packages.find]
+where = ["src"]
