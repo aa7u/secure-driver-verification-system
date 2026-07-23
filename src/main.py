@@ -6,7 +6,7 @@ from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 from rich.progress import track
-
+from etw_monitor import ETWDriverMonitor
 from collector import DriverCollector
 from verifier import DriverVerifier
 from evaluator import RiskEvaluator
@@ -258,3 +258,17 @@ def run_cli():
 
 if __name__ == "__main__":
     run_cli()
+
+def run_cli():
+    """CLI entry point for pip/package distribution."""
+    parser = argparse.ArgumentParser(description="SDVS - Secure Driver Verification System")
+    parser.add_argument("--limit", type=int, default=5, help="Number of drivers to scan")
+    parser.add_argument("--export", choices=["json", "html"], help="Export audit results (json or html)")
+    parser.add_argument("--monitor", action="store_true", help="Start Real-Time ETW Driver Load Monitor")
+    args = parser.parse_args()
+
+    if args.monitor:
+        monitor = ETWDriverMonitor()
+        monitor.start_polling_monitor()
+    else:
+        run_sdvs_audit(limit=args.limit, export_format=args.export)
