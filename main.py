@@ -24,7 +24,12 @@ def export_html(results, output_path="report.html"):
     """Saves scan results to a clean HTML report."""
     rows = ""
     for r in results:
-        badge_color = "#28a745" if r["risk_level"] == "LOW RISK" else "#ffc107" if r["risk_level"] == "MEDIUM RISK" else "#dc3545"
+        # Badge color map including CRITICAL RISK
+        badge_color = "#28a745" if r["risk_level"] == "LOW RISK" else \
+                      "#ffc107" if r["risk_level"] == "MEDIUM RISK" else \
+                      "#dc3545" if r["risk_level"] == "HIGH RISK" else \
+                      "#6f42c1" # Purple for CRITICAL RISK
+
         rows += f"""
         <tr>
             <td><strong>{r['driver_name']}</strong></td>
@@ -93,15 +98,17 @@ def run_sdvs_audit(limit=5, export_format=None):
 
         sha256_hash = DriverVerifier.get_file_hash(driver_path)
         is_signed = DriverVerifier.check_digital_signature(driver_path)
-        risk = RiskEvaluator.evaluate_driver(driver_name=driver_name, has_signature=is_signed)
+        
+        # Pass file_hash to RiskEvaluator to trigger Blocklist checks!
+        risk = RiskEvaluator.evaluate_driver(
+            driver_name=driver_name,
+            has_signature=is_signed,
+            file_hash=sha256_hash
+        )
 
         risk_level = risk["level"]
-        if risk_level == "LOW RISK":
-            risk_styled = f"[bold green]{risk_level}[/]"
-        elif risk_level == "MEDIUM RISK":
-            risk_styled = f"[bold yellow]{risk_level}[/]"
-        else:
-            risk_styled = f"[bold red]{risk_level}[/]"
+        risk_color = risk.get("color", "white")
+        risk_styled = f"[{risk_color}]{risk_level}[/{risk_color}]"
 
         signed_icon = "[green]Yes ✅[/]" if is_signed else "[red]No ❌[/]"
 
