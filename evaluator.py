@@ -1,29 +1,54 @@
+"""
+Risk Evaluation Engine for Kernel Drivers.
+Calculates risk levels based on signature status, PE attributes, and blocklist presence.
+"""
+
+from blocklist import BlocklistChecker
+
+
 class RiskEvaluator:
     """Evaluates safety and risk level for device drivers."""
 
-    @staticmethod
-    def evaluate_driver(driver_name: str, has_signature: bool = True, is_beta: bool = False) -> dict:
-        """Assigns a risk level and recommendation based on driver properties."""
-        
-        # High Risk Condition: No signature or revoked
+    _blocklist_checker = BlocklistChecker()
+
+    @classmethod
+    def evaluate_driver(
+        cls,
+        driver_name: str,
+        has_signature: bool = True,
+        is_beta: bool = False,
+        file_hash: str = None,
+    ) -> dict:
+        """
+        Assigns a risk level, color UI tag, and recommendation based on driver properties.
+        """
+        # 1. Critical Risk Condition: Known Vulnerable/Exploited Driver (BYOVD Threat)
+        if file_hash and cls._blocklist_checker.is_blocked(file_hash):
+            return {
+                "level": "CRITICAL RISK",
+                "color": "bold magenta",
+                "recommendation": "BLOCKED! Driver SHA-256 matches a known vulnerable/exploited kernel driver (BYOVD threat).",
+            }
+
+        # 2. High Risk Condition: No signature or revoked
         if not has_signature:
             return {
                 "level": "HIGH RISK",
                 "color": "red",
-                "recommendation": "Do NOT install/load. Unsigned kernel drivers pose severe security threats."
+                "recommendation": "Do NOT install/load. Unsigned kernel drivers pose severe security threats.",
             }
-        
-        # Medium Risk Condition: Experimental or Beta
+
+        # 3. Medium Risk Condition: Experimental or Beta
         if is_beta or "test" in driver_name.lower():
             return {
                 "level": "MEDIUM RISK",
                 "color": "yellow",
-                "recommendation": "Proceed with caution. Experimental or test-signed driver detected."
+                "recommendation": "Proceed with caution. Experimental or test-signed driver detected.",
             }
 
-        # Low Risk Condition: Fully signed & stable
+        # 4. Low Risk Condition: Fully signed & stable
         return {
             "level": "LOW RISK",
             "color": "green",
-            "recommendation": "Driver is officially signed and appears safe for kernel operation."
+            "recommendation": "Driver is officially signed and appears safe for kernel operation.",
         }
