@@ -5,6 +5,7 @@ from evaluator import RiskEvaluator
 from verifier import DriverVerifier
 from blocklist import BlocklistChecker
 from cert_verifier import CertificateVerifier
+from yara_verifier import YaraVerifier
 
 def test_risk_evaluator_signed():
     """Test driver evaluation for signed status."""
@@ -69,3 +70,10 @@ def test_risk_evaluator_blocklist():
 def test_certificate_extractor_non_existent():
     res = CertificateVerifier.extract_certificates("")
     assert res["has_cert_table"] is False
+
+
+def test_yara_verifier_initialization():
+    verifier = YaraVerifier("rules")
+    matches = verifier.scan_file("")
+    assert isinstance(matches, list)
+    assert len(matches) == 0

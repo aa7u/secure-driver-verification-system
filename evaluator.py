@@ -1,12 +1,13 @@
 """
 Risk Evaluation Engine for Kernel Drivers.
-Calculates trust scores (0-100), risk levels, extended PE attributes, and custom YAML policy rules.
+Calculates trust scores (0-100), risk levels, extended PE attributes, custom YAML policy rules, and YARA threat signatures.
 """
 
 import math
 import pefile
 from blocklist import BlocklistChecker
 from rule_engine import RuleEngine
+from yara_verifier import YaraVerifier
 
 
 def calculate_entropy(data: bytes) -> float:
@@ -69,6 +70,7 @@ class RiskEvaluator:
 
     _blocklist_checker = BlocklistChecker()
     _rule_engine = RuleEngine()
+    _yara_verifier = YaraVerifier()
 
     @classmethod
     def evaluate_driver(
@@ -80,7 +82,7 @@ class RiskEvaluator:
         file_path: str = None,
     ) -> dict:
         """
-        Assigns a Trust Score (0-100), Risk Level, UI Color, and evaluates custom YAML policy rules.
+        Assigns a Trust Score (0-100), Risk Level, UI Color, and evaluates YAML rules & YARA threat matches.
         """
         score = 100
         deductions = []
@@ -103,6 +105,7 @@ class RiskEvaluator:
                 "pdb_path": pe_meta["pdb_path"],
                 "deductions": deductions,
                 "triggered_rules": [],
+                "yara_matches": [],
                 "recommendation": f"BLOCKED! Driver SHA-256 matches a known vulnerable/exploited kernel driver ({block_source}).",
             }
 
@@ -134,6 +137,12 @@ class RiskEvaluator:
             score -= ded_val
             deductions.append(f"Policy Rule '{rule['rule_name']}': {rule['description']} (-{ded_val})")
 
+        # 4. YARA Threat Intelligence Scan
+        yara_matches = cls._yara_verifier.scan_file(file_path) if file_path else []
+        for y_match in yara_matches:
+            score -= 30
+            deductions.append(f"YARA Threat Match '{y_match['rule_name']}': {y_match['description']} (-30)")
+
         # Clamp final score between 0 and 100
         final_score = max(0, min(100, score))
 
@@ -142,11 +151,11 @@ class RiskEvaluator:
             level = "LOW RISK"
             color = "green"
             rec = "Driver is officially signed and appears safe for kernel operation."
-        elif final_score > 50:  # > 50 keeps 50 strictly inside HIGH RISK
+        elif final_score > 50:
             level = "MEDIUM RISK"
             color = "yellow"
             rec = "Proceed with caution. Experimental or test-signed driver detected."
-        elif final_score >= 20:  # 50 falls here
+        elif final_score >= 20:
             level = "HIGH RISK"
             color = "red"
             rec = "Do NOT install/load. Unsigned or suspicious kernel drivers pose severe security threats."
@@ -163,5 +172,6 @@ class RiskEvaluator:
             "pdb_path": pe_meta["pdb_path"],
             "deductions": deductions,
             "triggered_rules": triggered_rules,
+            "yara_matches": yara_matches,
             "recommendation": rec,
         }
