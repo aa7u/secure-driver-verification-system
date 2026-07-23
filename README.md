@@ -1,167 +1,138 @@
 # 🛡️ Secure Driver Verification System (SDVS)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Tests](https://github.com/aa7u/secure-driver-verification-system/actions/workflows/tests.yml/badge.svg)](https://github.com/aa7u/secure-driver-verification-system/actions)
-[![Focus](https://img.shields.io/badge/Focus-Kernel%20Security-blue)](#)
-[![Python](https://img.shields.io/badge/Python-3.10%2B-green.svg)](#)
+[![Build Status](https://github.com/aa7u/secure-driver-verification-system/actions/workflows/ci.yml/badge.svg)](https://github.com/aa7u/secure-driver-verification-system/actions)
+[![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-An open-source security tool engineered to audit, verify, and assess Windows kernel drivers before execution. Operating at the kernel level, device drivers possess elevated system privileges, making untrusted or unsigned drivers a significant security risk.
-
-**SDVS** helps mitigate supply chain risks and **Bring Your Own Vulnerable Driver (BYOVD)** attacks by inspecting digital signatures, trusted vendors, vulnerable driver blocklists, and binary integrity.
-
----
-
-# 🎬 Live Audit Demonstration
-
-![SDVS Demo](assets/demo.gif)
-
----
-
-# 🏗️ System Architecture & Data Flow
-
-```mermaid
-flowchart TD
-    A[Driver Collector] -->|Extract Driver Paths| B[Driver Verifier]
-    B -->|Check Authenticode| C[PE Signature Parser]
-    B -->|Compute SHA-256| D[Hash Engine]
-    D -->|Query Hashes| E[Blocklist Engine / BYOVD Database]
-    C --> F[Risk Evaluator]
-    E --> F
-    F -->|Assign Risk Level| G[Rich CLI & Exporter]
-    G -->|Render Results| H[Interactive Terminal]
-    G -->|Generate Reports| I[JSON / HTML Output]
-```
-
----
-
-# 🛡️ Threat Model & Security Design
-
-## Covered Threats
-
-- 🦠 **Bring Your Own Vulnerable Driver (BYOVD)**  
-  Detects legitimately signed but vulnerable drivers by comparing SHA-256 hashes against Microsoft and LOLDrivers blocklists.
-
-- 🔓 **Unsigned Kernel Drivers**  
-  Flags unsigned or invalid `.sys` drivers before execution.
-
-- 🧪 **Test-Signed Drivers**  
-  Detects drivers signed with test certificates or intended only for development environments.
-
-## Security Philosophy
-
-### Zero Trust
-
-No driver is trusted solely because it has a valid digital signature. Every driver is additionally verified using cryptographic hashes and vulnerable driver databases.
-
-### Defense in Depth
-
-Multiple verification layers reduce the chance of malicious drivers bypassing detection:
-
-- Digital signature verification
-- SHA-256 integrity verification
-- Vulnerable driver blocklist matching
-- PE metadata analysis
-- Risk scoring engine
-
----
-
-# ⚠️ Current Limitations
-
-- Static analysis only (no runtime monitoring).
-- Does not inspect kernel memory or detect DKOM.
-- Uses local vulnerable driver databases.
-- Online threat intelligence (VirusTotal) is planned for future releases.
+**Secure Driver Verification System (SDVS)** is a Windows kernel driver auditing and threat intelligence tool built for security researchers, incident responders, and system administrators. It analyzes installed Windows kernel drivers (`.sys`), calculates trust scores, verifies digital signatures, checks known vulnerable driver blocklists, evaluates custom policy rules, and performs YARA-based threat detection.
 
 ---
 
 # ✨ Features
 
-- 🔍 Scan installed Windows kernel drivers
-- ✍️ Verify Authenticode digital signatures
-- 🛡️ Detect Microsoft-blocklisted vulnerable drivers
-- 🔐 Compute SHA-256 hashes
-- 🎨 Interactive Rich CLI interface
-- 📄 Export reports to JSON and HTML
-- ⚠️ Automatic driver risk assessment
-- 📊 Color-coded security results
+- 🔍 **PE Analysis**
+  - Parses PE headers and sections
+  - Calculates Shannon entropy
+  - Extracts PDB/debug paths
+
+- 🔐 **Digital Signature Verification**
+  - Verifies Authenticode signatures
+  - Extracts certificate issuer and subject information
+
+- 🛡️ **Known Vulnerable Driver Detection**
+  - SHA-256 hash generation
+  - Microsoft vulnerable driver blocklist support
+  - LOLDrivers blocklist support
+
+- ⚙️ **Custom Policy Engine**
+  - YAML-based rule configuration
+  - No code modifications required
+
+- 🧪 **YARA Threat Scanning**
+  - Detects suspicious patterns
+  - Supports custom YARA rules
+
+- 📊 **Report Generation**
+  - Interactive HTML dashboard
+  - JSON export
+  - Risk score visualization using Chart.js
+
+- 💻 **Command-Line Interface**
+  - Simple CLI with configurable scan limits
+  - Packaged as the `sdvs` command
 
 ---
 
-# 🗺️ Development Roadmap
+# 📁 Repository Structure
 
-| Version | Features | Status |
-|---------|----------|--------|
-| **v0.1.0 – v0.2.0** | PE parsing, Signature verification, Rich CLI, HTML/JSON export | ✅ Completed |
-| **v0.3.0** | Risk engine, Microsoft vulnerable driver blocklist, BYOVD detection | ✅ Completed |
-| **v0.4.0** | Extended PE metadata, LOLDrivers integration, Custom scan paths | ⏳ In Progress |
-| **v0.5.0** | Certificate chain validation, CRL/OCSP checking, Optional YARA scanning | 📅 Planned |
-| **v1.0.0** | ETW monitoring, Kernel memory inspection, VirusTotal API, SIEM/SARIF export | 📅 Planned |
-
----
-
-# 🚀 Quick Start
-
-## Requirements
-
-- Windows 10 or Windows 11
-- Python 3.10+
-- Administrator privileges (recommended)
-
-## Installation
-
-```powershell
-# Clone the repository
-git clone https://github.com/aa7u/secure-driver-verification-system.git
-
-# Enter the project
-cd secure-driver-verification-system
-
-# Create a virtual environment
-python -m venv .venv
-
-# Activate it
-.\.venv\Scripts\Activate.ps1
-
-# Install dependencies
-pip install -r requirements.txt
+```text
+secure-driver-verification-system/
+│
+├── .github/
+│   └── workflows/
+│       └── ci.yml
+│
+├── src/
+│   ├── rules/
+│   │   └── kernel_suspicious.yar
+│   │
+│   ├── blocklist.py
+│   ├── cert_verifier.py
+│   ├── collector.py
+│   ├── evaluator.py
+│   ├── main.py
+│   ├── rule_engine.py
+│   ├── rules.yaml
+│   ├── verifier.py
+│   └── yara_verifier.py
+│
+├── tests/
+│   └── test_sdvs.py
+│
+├── pyproject.toml
+├── README.md
+└── LICENSE
 ```
 
-## Run the Scanner
+---
 
-```powershell
-# Interactive scan
-python main.py
+# 🚀 Installation
 
-# Scan first 10 drivers and export HTML report
-python main.py --limit 10 --export html
+Clone the repository:
+
+```bash
+git clone https://github.com/aa7u/secure-driver-verification-system.git
+cd secure-driver-verification-system
+```
+
+Install the project in editable mode:
+
+```bash
+pip install -e .
+```
+
+---
+
+# ▶️ Usage
+
+Scan the first 5 installed kernel drivers:
+
+```bash
+sdvs --limit 5
+```
+
+Generate an interactive HTML report:
+
+```bash
+sdvs --limit 10 --export html
+```
+
+Export scan results as JSON:
+
+```bash
+sdvs --limit 10 --export json
 ```
 
 ---
 
 # 🧪 Running Tests
 
-```powershell
+Run the test suite using pytest:
+
+```bash
 python -m pytest
 ```
 
 ---
 
-# 📂 Example Output
+# 📦 Requirements
 
-```text
-┌─────────────────────────────┬──────────────┬──────────────┐
-│ Driver                      │ Signature    │ Risk         │
-├─────────────────────────────┼──────────────┼──────────────┤
-│ disk.sys                    │ Valid        │ LOW          │
-│ example.sys                 │ Unsigned     │ HIGH         │
-│ vulnerable.sys              │ Valid        │ CRITICAL     │
-└─────────────────────────────┴──────────────┴──────────────┘
-```
+- Python 3.10+
+- Windows
+- Administrator privileges (recommended for full driver enumeration)
 
 ---
 
 # 📜 License
 
-This project is licensed under the MIT License.
-
-See the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
