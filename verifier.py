@@ -1,28 +1,50 @@
 import hashlib
 import os
+import pefile
 
 class DriverVerifier:
-    """Verifies cryptographic integrity and hashes of Windows driver binaries."""
+    """Provides cryptographic hashing and PE structure analysis for kernel drivers."""
 
     @staticmethod
     def get_file_hash(file_path: str) -> str:
-        """Generates a SHA-256 hash for a given driver file."""
-        if not os.path.exists(file_path):
-            raise FileNotFoundError(f"Driver file not found: {file_path}")
-
-        sha256_hash = hashlib.sha256()
+        """Calculates the SHA-256 hash of a file."""
+        sha256 = hashlib.sha256()
         with open(file_path, "rb") as f:
-            for byte_block in iter(lambda: f.read(4096), b""):
-                sha256_hash.update(byte_block)
-        return sha256_hash.hexdigest()
+            while chunk := f.read(8192):
+                sha256.update(chunk)
+        return sha256.hexdigest()
+
+    @staticmethod
+    def check_digital_signature(file_path: str) -> bool:
+        """
+        Inspects the PE Security Directory of a .sys driver file 
+        to verify if an Authenticode digital signature is present.
+        """
+        if not os.path.exists(file_path):
+            return False
+
+        try:
+            # Parse PE file headers
+            pe = pefile.PE(file_path, fast_load=True)
+            
+            # Parse Security Directory (Index 4 in Data Directories)
+            pe.parse_data_directories(directories=[
+                pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']
+            ])
+
+            # Check if Security Directory contains a valid entry
+            security_dir = pe.OPTIONAL_HEADER.DATA_DIRECTORY[
+                pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']
+            ]
+            
+            return security_dir.VirtualAddress != 0 and security_dir.Size > 0
+
+        except Exception:
+            return False
 
 if __name__ == "__main__":
-    # تجربة سريعة على ملف تعريف حقيقي في نظام ويندوز
     sample_driver = r"C:\Windows\System32\drivers\null.sys"
-    
     if os.path.exists(sample_driver):
-        driver_hash = DriverVerifier.get_file_hash(sample_driver)
-        print(f"[+] Sample Driver: {sample_driver}")
-        print(f"[+] Computed SHA-256: {driver_hash}")
-    else:
-        print("[-] Sample driver path not found.")
+        is_signed = DriverVerifier.check_digital_signature(sample_driver)
+        print(f"[+] Driver: {sample_driver}")
+        print(f"[+] Signed Authenticode: {is_signed}")
