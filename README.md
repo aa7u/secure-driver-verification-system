@@ -11,6 +11,7 @@ An open-source security tool designed to audit, verify, and assess system driver
 
 ## 🎬 Live Audit Demonstration
 
+
 ![SDVS Demo](assets/demo.gif)
 
 ---
